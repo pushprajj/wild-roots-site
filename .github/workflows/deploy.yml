@@ -1,0 +1,42 @@
+name: Deploy to cPanel
+on:
+  push:
+    branches: [main]
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull and deploy via cPanel API
+        env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_USER: ${{ secrets.CPANEL_USER }}
+          CPANEL_TOKEN: ${{ secrets.CPANEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          # CPANEL_HOST may be stored as a bare hostname or a full https://...:2083/ URL
+          HOST=$(echo "$CPANEL_HOST" | sed -E 's#^https?://##; s#[:/].*$##')
+          BASE="https://$HOST:2083/execute"
+          api() { local fn=$1; shift; curl -sfS -H "Authorization: cpanel $CPANEL_USER:$CPANEL_TOKEN" -G "$BASE/$fn" "$@"; }
+
+          ROOT=$(api VersionControl/retrieve --data-urlencode 'fields=name,repository_root' \
+            | jq -r '.data[] | select(.name=="wild-roots-site") | .repository_root')
+          test -n "$ROOT" || { echo "wild-roots-site repo not found on cPanel" >&2; exit 1; }
+
+          api VersionControl/update --data-urlencode "repository_root=$ROOT" --data-urlencode branch=main | jq -e '.status==1' >/dev/null
+          api VersionControlDeployment/create --data-urlencode "repository_root=$ROOT" | jq -e '.status==1' >/dev/null
+
+          # The deploy stamps ?v= with the deploy time; wait until the live page carries a fresh stamp
+          START=$(date +%s)
+          for i in $(seq 1 12); do
+            sleep 10
+            V=$(curl -s https://wildrootsint.in/index.html | grep -o 'styles\.css?v=[0-9]*' | grep -o '[0-9]*$' | head -1 || true)
+            if [ -n "$V" ] && [ "$V" -ge $((START - 60)) ]; then
+              echo "Live on wildrootsint.in (asset stamp $V)"
+              exit 0
+            fi
+          done
+          echo "cPanel accepted the deploy but the live site did not refresh within 2 minutes" >&2
+          exit 1
