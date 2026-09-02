@@ -1,0 +1,7 @@
+dist/
+
+# Never publish: original documents and the redaction word lists
+# contain the partners' personal data. Only redacted copies in
+# site/assets/docs/ may leave this machine.
+references/
+tools/redact_docs.py

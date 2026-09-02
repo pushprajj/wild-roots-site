@@ -1,0 +1,7 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH="$HOME/public_html"
+    - export STAMP=$(date +%s)
+    - /bin/cp -R site/. "$DEPLOYPATH"/
+    - sed -i -E "s/(css\/styles\.css|js\/main\.js|js\/products\.js|js\/chat\.js)(\?v=[0-9]+)?/\1?v=$STAMP/g" "$DEPLOYPATH"/*.html
