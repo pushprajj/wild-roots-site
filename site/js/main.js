@@ -68,7 +68,7 @@
   var phaseList = document.getElementById('hero-phases');
   var heroVideo = document.querySelector('.hero video');
   if (phaseList && heroVideo) {
-    var bounds = [5.9, 11.4, 16.9];
+    var bounds = [3.8, 7.6, 11.3];
     var items = phaseList.querySelectorAll('li');
     heroVideo.addEventListener('timeupdate', function () {
       var t = heroVideo.currentTime;
